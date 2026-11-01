@@ -6,6 +6,7 @@
 # > 容易忽视的直连分流
 host, ad.12306.cn, direct
 host, sdkapp.uve.weibo.com, direct
+host, akkcloud.org, direct
 host, psac3.aoppsac.com, direct
 host, go.toter.me, direct
 
