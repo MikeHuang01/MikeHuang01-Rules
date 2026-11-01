@@ -1,0 +1,19 @@
+# NAME: CustomDirect
+# MAINTAINER: MikeHuang01
+# 说明：这里是你的自定义直连规则。以后直接把新规则追加在本文件末尾。
+# 自动同步会先保留这里的规则，再合并 blackmatrix7 的上游 Direct 列表并去重。
+
+# > 容易忽视的直连分流
+host, ad.12306.cn, direct
+host, sdkapp.uve.weibo.com, direct
+
+# > 本地网络与国内直连
+ip-cidr, 10.0.0.0/8, direct
+ip-cidr, 127.0.0.0/8, direct
+ip-cidr, 172.16.0.0/12, direct
+ip-cidr, 192.168.0.0/16, direct
+ip-cidr, 224.0.0.0/24, direct
+ip-cidr, 182.254.116.0/24, direct
+IP-ASN,132203,Direct
+host, wanwanzhou.top, direct
+geoip, cn, direct
