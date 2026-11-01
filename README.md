@@ -1,6 +1,6 @@
 # MikeHuang01 规则配置
 
-面向 **QuantumultX** 与 **Shadowrocket** 的分流、直连和去广告规则集。配置按客户端分别维护，保留规则用途分区，并在整合时去掉重复项。
+面向 **QuantumultX** 与 **Shadowrocket** 的分流、直连和去广告规则集。Direct 规则会定时从上游实时抓取，再与你的自定义规则合并、去重，生成客户端可直接导入的文件。
 
 ## 快速导入
 
@@ -10,7 +10,7 @@
 
 | 用途 | 远程分流地址 |
 | --- | --- |
-| 常用直连与补充规则 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/Direct.list` |
+| 直连（自动同步上游 + 你的自定义规则） | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/Direct.list` |
 | 去广告与劫持拦截 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/AdBlock.list` |
 
 添加后将对应策略保持为文件中的 `Direct` / `REJECT`，并确认分流顺序符合自己的需要。中国大陆网络访问 `raw.githubusercontent.com` 不稳定时，可把域名替换为可用的 GitHub Raw 镜像，文件路径保持不变。
@@ -21,33 +21,41 @@
 
 | 用途 | 远程规则地址 |
 | --- | --- |
-| 常用直连与补充规则 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/Shadowrocket/Direct.conf` |
+| 直连（自动同步上游 + 你的自定义规则） | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/Shadowrocket/Direct.conf` |
 | 去广告与劫持拦截 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/Shadowrocket/AdBlock.conf` |
 
-如果在客户端里手动选择策略，直连文件使用 `DIRECT`，拦截文件使用 `REJECT`。Shadowrocket 会把域名规则显示为 `DOMAIN`、`DOMAIN-SUFFIX`、`DOMAIN-KEYWORD`，IP 网段则附带 `no-resolve`。
+如果在客户端里手动选择策略，直连文件使用 `DIRECT`，拦截文件使用 `REJECT`。Shadowrocket 的规则集使用 `DOMAIN`、`DOMAIN-SUFFIX`、`DOMAIN-KEYWORD`，IP 网段附带 `no-resolve`。
 
 ## 当前规则
 
-- `QuantumultX/Direct.list`：242 条唯一规则，含容易忽略的直连项、内网网段、国内解析和上游 Direct 列表。
-- `QuantumultX/AdBlock.list`：291,165 条唯一规则，合并 Advertising 与 Hijacking 规则，统一为 `REJECT`。
-- `Shadowrocket/Direct.conf`：与 QuantumultX 直连规则一一对应，完成客户端语法转换。
-- `Shadowrocket/AdBlock.conf`：与 QuantumultX 广告规则一一对应，完成客户端语法转换。
+- `QuantumultX/Direct.list`：自动生成的 QX 分流文件，合并自定义与上游 Direct 规则。
+- `QuantumultX/AdBlock.list`：291,165 条唯一规则，合并 Advertising 与 Hijacking，统一拦截。
+- `QuantumultX/CustomDirect.list`：**只在这里维护你的自定义直连规则**，同步不会覆盖该文件。
+- `Shadowrocket/Direct.conf`：从合并后的 Direct 规则转换生成，供 Shadowrocket 使用。
+- `Shadowrocket/AdBlock.conf`：与 QX 广告规则一一对应。
 
-每次合并都以“规则类型 + 匹配值”为键去重。例如 `HOST,ad.12306.cn,DIRECT` 与自定义的 `host, ad.12306.cn, direct` 视为重复，只保留一条。
+每次生成都按“规则类型 + 匹配值”去重，且不区分大小写。例如 `HOST,ad.12306.cn,DIRECT` 与 `host, ad.12306.cn, direct` 视为同一条，只保留一条。
 
-## 规则结构
+## 自动同步方式
 
-`Direct` 文件按以下顺序整理：
+上游来源：[blackmatrix7 Direct.list](https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Direct/Direct.list)。
 
-1. 自定义直连补充；
-2. 本地网络与国内解析；
-3. 上游 Direct 列表。
+[规则同步 Action](https://github.com/MikeHuang01/MikeHuang01-Rules/actions/workflows/sync-direct.yml) 每 6 小时抓取一次上游：
 
-广告规则来自 blackmatrix7 的 Advertising 与 Hijacking 列表。Hijacking 中与 Advertising 重复的规则会被跳过，最终规则统一拦截，便于排查被错误拦截的域名。
+1. 读取 `QuantumultX/CustomDirect.list`；
+2. 实时下载上游 Direct 列表；
+3. 合并两边的规则并去重；
+4. 生成 QX 的 `QuantumultX/Direct.list`；
+5. 同步生成 Shadowrocket 的 `Shadowrocket/Direct.conf`；
+6. 只有内容确实变化时才自动提交。
+
+GitHub 的定时任务可能有几分钟到更长时间的执行延迟。需要立即更新时，打开上面链接，点击 **Run workflow**，选择 **main** 分支并运行。
 
 ## 添加自己的规则
 
-可以直接在对应文件的分区末尾追加。QuantumultX 常用格式：
+只修改 `QuantumultX/CustomDirect.list`，在文件末尾追加即可；不要把手工规则写进自动生成的 `Direct.list`，否则下一次同步会覆盖它。你的规则始终优先保留，上游出现同类型、同匹配值的重复项会自动跳过。
+
+QuantumultX 常用格式：
 
 ```text
 HOST,example.com,DIRECT
@@ -56,19 +64,20 @@ HOST-KEYWORD,example,DIRECT
 IP-CIDR,192.0.2.0/24,DIRECT,no-resolve
 ```
 
-Shadowrocket 常用格式：
+也可以在本地验证合并结果：
 
-```text
-DOMAIN,example.com,DIRECT
-DOMAIN-SUFFIX,example.com,DIRECT
-DOMAIN-KEYWORD,example,DIRECT
-IP-CIDR,192.0.2.0/24,DIRECT,no-resolve
+```bash
+python3 scripts/sync-direct.py
 ```
 
-修改后先确认规则值没有重复，再把客户端里的远程资源更新一次。若需要新增规则分类，建议在 `QuantumultX/` 与 `Shadowrocket/` 下建立同名文件，README 中同步登记用途和导入地址。
+需要在同一台机器上直接运行、又不想先等 Actions 时，执行脚本后会更新两份 Direct 文件；确认 Diff 正常再提交。
+
+## 广告规则
+
+去广告规则来自 blackmatrix7 的 Advertising 与 Hijacking 列表。Hijacking 中与 Advertising 重复的条目会被跳过，最终都转换为 `REJECT` 便于排查误拦截。
 
 ## 来源与维护
 
-上游规则：[blackmatrix7/ios_rule_script](https://github.com/blackmatrix7/ios_rule_script)。上游的版权与许可归原作者所有；本项目只做整合、去重和客户端格式转换，并保留作者、仓库与上游更新时间字段。
+上游规则：[blackmatrix7/ios_rule_script](https://github.com/blackmatrix7/ios_rule_script)。上游的版权与许可归原作者所有；本项目只做整合、去重和客户端格式转换，并保留作者与仓库信息。
 
-维护者：MikeHuang01。后续新增或调整规则会继续同步到两套客户端目录。
+维护者：MikeHuang01。
