@@ -7,6 +7,7 @@
 host, ad.12306.cn, direct
 host, sdkapp.uve.weibo.com, direct
 host, psac3.aoppsac.com, direct
+host, go.toter.me, direct
 
 # > 本地网络与国内直连
 ip-cidr, 10.0.0.0/8, direct
