@@ -2,8 +2,9 @@
 """Merge MikeHuang01 custom rules with the live blackmatrix7 Direct list.
 
 The generated files are intentionally committed: QuantumultX and Shadowrocket
-can fetch them directly from raw.githubusercontent.com. Custom rules are never
-overwritten by this script.
+can fetch them directly from raw.githubusercontent.com. Custom rules are merged
+with upstream rules; the dedicated 12306 ad host is omitted from DIRECT so its
+AdBlock rejection cannot be bypassed.
 """
 from __future__ import annotations
 
@@ -25,6 +26,9 @@ TYPE_MAP = {
     "HOST-SUFFIX": "DOMAIN-SUFFIX",
     "HOST-KEYWORD": "DOMAIN-KEYWORD",
 }
+
+# The dedicated 12306 ad host is rejected by AdBlock; suppress its DIRECT route.
+SUPPRESSED_DIRECT_KEYS = {("DOMAIN", "ad.12306.cn")}
 
 
 def key(line: str) -> tuple[str, str] | None:
@@ -66,8 +70,14 @@ def main() -> int:
     request = urllib.request.Request(UPSTREAM, headers={"User-Agent": "MikeHuang01-Rules-sync/1.0"})
     with urllib.request.urlopen(request, timeout=60) as response:
         upstream = response.read().decode("utf-8").splitlines()
-    custom_rules = [line for line in custom if key(line)]
-    upstream_rules = [line.strip() for line in upstream if key(line)]
+    custom_rules = [
+        line for line in custom
+        if key(line) and key(line) not in SUPPRESSED_DIRECT_KEYS
+    ]
+    upstream_rules = [
+        line.strip() for line in upstream
+        if key(line) and key(line) not in SUPPRESSED_DIRECT_KEYS
+    ]
     merged = normalize(custom_rules + upstream_rules)
 
     qx_header = [

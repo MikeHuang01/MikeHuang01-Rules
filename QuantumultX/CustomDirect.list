@@ -2,9 +2,9 @@
 # MAINTAINER: MikeHuang01
 # 说明：这里是你的自定义直连规则。以后直接把新规则追加在本文件末尾。
 # 自动同步会先保留这里的规则，再合并 blackmatrix7 的上游 Direct 列表并去重。
+# `ad.12306.cn` 由同步脚本从所有 Direct 输入中排除，因为 AdBlock 会拒绝该广告主机。
 
 # > 容易忽视的直连分流
-host, ad.12306.cn, direct
 host, sdkapp.uve.weibo.com, direct
 host, akkcloud.org, direct
 host, psac3.aoppsac.com, direct
