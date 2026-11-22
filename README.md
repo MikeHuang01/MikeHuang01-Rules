@@ -12,7 +12,7 @@
 | --- | --- |
 | 直连（自动同步上游 + 你的自定义规则） | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/Direct.list` |
 | 去广告与劫持拦截 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/AdBlock.list` |
-| 支付宝/菜鸟小程序广告重写（视频对应场景） | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/AdvertisingLite.conf` |
+| 支付宝内菜鸟小程序的定点广告重写（仅匹配特定 API） | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/AdvertisingLite.conf` |
 
 AdBlock 规则应排在 Direct 规则之前，避免 `ad.12306.cn` 这类同时出现在直连与拦截集的域名被更早的 `Direct` 规则放行。启用重写还需要在 QuantumultX 中启用 MITM 并信任其证书；新增文件已列出该小程序 API 所需主机。中国大陆网络访问 `raw.githubusercontent.com` 不稳定时，可把域名替换为可用的 GitHub Raw 镜像，文件路径保持不变。
 
@@ -77,9 +77,9 @@ python3 scripts/sync-direct.py
 
 去广告规则来自 blackmatrix7 的 Advertising 与 Hijacking 列表。Hijacking 中与 Advertising 重复的条目会被跳过，最终都转换为 `REJECT` 便于排查误拦截。
 
-`QuantumultX/AdvertisingLite.conf` 由仓库的每 6 小时同步任务从 blackmatrix7 上游重新生成，并自动合并 [ddgksf2013/Rewrite 的 CainiaoAds.conf](https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/AdBlock/CainiaoAds.conf) 中针对支付宝菜鸟小程序的 4 条公开 API 重写规则及其 `guide-acs.m.taobao.com`、`acs4miniapp-inner.m.taobao.com` MITM 主机。视频里看到的菜鸟/支付宝小程序商品推荐属于 API 响应内容，使用 URL 重写比把整个 `taobao.com` 加入 HOST 拦截更不容易影响小程序正常功能。
+`QuantumultX/AdvertisingLite.conf` 由仓库的每 6 小时同步任务从 blackmatrix7 上游重新生成，并自动合并 [ddgksf2013/Rewrite 的 CainiaoAds.conf](https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/AdBlock/CainiaoAds.conf) 中针对支付宝内菜鸟小程序特定 API 的 4 条重写规则及其 `guide-acs.m.taobao.com`、`acs4miniapp-inner.m.taobao.com` MITM 主机。首条广告请求规则保留上游对 `_home` 请求的排除条件。此资源不等同于“屏蔽支付宝所有广告”，也不覆盖支付宝出行页、哈啰或 12306 小程序的全部广告；这些场景需要先确认实际请求接口，避免误拦登录、支付或小程序核心接口。
 
-铁路 12306 相关的 `ad.12306.cn` 与 `12306media.com` 已经存在于 `QuantumultX/AdBlock.list`，本次没有重复添加未经验证的接口规则。
+铁路 12306 相关的 `ad.12306.cn` 与 `12306media.com` 已存在于 `QuantumultX/AdBlock.list`。其中 `ad.12306.cn` 同时配置了直连规则，因此 QX 中 AdBlock 必须排在 Direct 之前；否则该域名可能先按直连规则处理。
 
 ## 来源与维护
 
