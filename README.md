@@ -77,7 +77,7 @@ python3 scripts/sync-direct.py
 
 去广告规则来自 blackmatrix7 的 Advertising 与 Hijacking 列表。Hijacking 中与 Advertising 重复的条目会被跳过，最终都转换为 `REJECT` 便于排查误拦截。
 
-`QuantumultX/AdvertisingLite.conf` 由仓库的每 6 小时同步任务从 blackmatrix7 上游重新生成，并自动合并 [ddgksf2013/Rewrite 的 CainiaoAds.conf](https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/AdBlock/CainiaoAds.conf) 中针对支付宝内菜鸟小程序特定 API 的 4 条重写规则及其 `guide-acs.m.taobao.com`、`acs4miniapp-inner.m.taobao.com` MITM 主机。支付宝小程序的 `*.taobao.com` 接口规则按上游原样匹配；上游针对 `*.cainiao.com` 的原生菜鸟 App 规则才带 `_home` 排除条件，不能把该例外套用到小程序规则。此资源不等同于“屏蔽支付宝所有广告”，也不覆盖支付宝出行页、哈啰或 12306 小程序的全部广告；这些场景需要先确认实际请求接口，避免误拦登录、支付或小程序核心接口。
+`QuantumultX/AdvertisingLite.conf` 由仓库的每 6 小时同步任务从 blackmatrix7 上游重新生成，并自动合并 [ddgksf2013/Rewrite 的 CainiaoAds.conf](https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/AdBlock/CainiaoAds.conf) 中针对支付宝内菜鸟小程序的 3 条明确广告 API 重写规则及其 `guide-acs.m.taobao.com`、`acs4miniapp-inner.m.taobao.com` MITM 主机。上游另有一条被标注为“匿名选择”的 `researchservice.consultmerge` 规则，本仓库暂不启用，待确认其确属广告接口后再考虑添加。支付宝小程序的 `*.taobao.com` 接口规则按上游原样匹配；上游针对 `*.cainiao.com` 的原生菜鸟 App 规则才带 `_home` 排除条件，不能把该例外套用到小程序规则。此资源不等同于“屏蔽支付宝所有广告”，也不覆盖支付宝出行页、哈啰或 12306 小程序的全部广告；这些场景需要先确认实际请求接口，避免误拦登录、支付或小程序核心接口。
 
 铁路 12306 相关的 `ad.12306.cn` 与 `12306media.com` 已存在于 `QuantumultX/AdBlock.list`。其中 `ad.12306.cn` 同时配置了直连规则，因此 QX 中 AdBlock 必须排在 Direct 之前；否则该域名可能先按直连规则处理。
 

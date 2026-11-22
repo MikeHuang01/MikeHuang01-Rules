@@ -23,7 +23,6 @@ CUSTOM_RULES = [
     r"^https?:\/\/[a-zA-Z0-9_.-]+\.taobao\.com\/gw\/mtop\.cainiao\.guoguo\.nbnetflow\.ads\. url reject-200",
     r"^https?:\/\/[a-zA-Z0-9_.-]+\.taobao\.com\/gw\/mtop\.alimama\.abyss\.unionpage\.get url reject-200",
     r"^https?:\/\/[a-zA-Z0-9_.-]+\.taobao\.com\/gw\/mtop\.cainiao\.adx\.flyad\.getad url reject-200",
-    r"^https?:\/\/[a-zA-Z0-9_.-]+\.taobao\.com\/gw\/mtop\.cainiao\.nbmensa\.research\.researchservice\.consultmerge url reject-200",
 ]
 CUSTOM_HOSTS = ["guide-acs.m.taobao.com", "acs4miniapp-inner.m.taobao.com"]
 COUNT_NAMES = ("HOST", "HOST-KEYWORD", "IP-CIDR", "IP6-CIDR", "REJECT", "MITM", "TOTAL")
