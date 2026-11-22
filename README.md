@@ -39,18 +39,18 @@ AdBlock 规则应排在 Direct 规则之前，避免 `ad.12306.cn` 这类同时�
 
 ## 自动同步方式
 
-上游来源：[blackmatrix7 Direct.list](https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Direct/Direct.list)。
+上游来源：
+- [blackmatrix7 Direct.list](https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Direct/Direct.list)
+- [blackmatrix7 AdvertisingLite.conf](https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rewrite/QuantumultX/AdvertisingLite/AdvertisingLite.conf)
 
-[规则同步 Action](https://github.com/MikeHuang01/MikeHuang01-Rules/actions/workflows/sync-direct.yml) 每 6 小时抓取一次上游：
+[规则同步 Action](https://github.com/MikeHuang01/MikeHuang01-Rules/actions/workflows/sync-direct.yml) 每 6 小时抓取并更新：
 
-1. 读取 `QuantumultX/CustomDirect.list`；
-2. 实时下载上游 Direct 列表；
-3. 合并两边的规则并去重；
-4. 生成 QX 的 `QuantumultX/Direct.list`；
-5. 同步生成 Shadowrocket 的 `Shadowrocket/Direct.conf`；
-6. 只有内容确实变化时才自动提交。
+1. 合并 Direct 上游规则与自定义规则，生成 QuantumultX 和 Shadowrocket 的 Direct 文件；
+2. 重新下载上游 AdvertisingLite.conf；
+3. 自动补回支付宝/菜鸟小程序的 4 条自定义广告重写规则和所需 MITM 主机；
+4. 只有生成内容确实变化时才自动提交。
 
-GitHub 的定时任务可能有几分钟到更长时间的执行延迟。需要立即更新时，打开上面链接，点击 **Run workflow**，选择 **main** 分支并运行。
+GitHub 定时任务可能有几分钟到更长时间的执行延迟。需要立即同步时，打开上面链接，点击 **Run workflow**，选择 **main** 分支并运行。
 
 ## 添加自己的规则
 
@@ -77,7 +77,7 @@ python3 scripts/sync-direct.py
 
 去广告规则来自 blackmatrix7 的 Advertising 与 Hijacking 列表。Hijacking 中与 Advertising 重复的条目会被跳过，最终都转换为 `REJECT` 便于排查误拦截。
 
-`QuantumultX/AdvertisingLite.conf` 是基于 blackmatrix7 `AdvertisingLite.conf` 的可直接导入版本，额外合并了 [ddgksf2013/Rewrite 的 CainiaoAds.conf](https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/AdBlock/CainiaoAds.conf) 中针对支付宝菜鸟小程序的 4 条公开 API 重写规则，并补充其 `guide-acs.m.taobao.com` 与 `acs4miniapp-inner.m.taobao.com` MITM 主机。视频里看到的菜鸟/支付宝小程序商品推荐属于 API 响应内容，使用 URL 重写比把整个 `taobao.com` 加入 HOST 拦截更不容易影响小程序正常功能。
+`QuantumultX/AdvertisingLite.conf` 由仓库的每 6 小时同步任务从 blackmatrix7 上游重新生成，并自动合并 [ddgksf2013/Rewrite 的 CainiaoAds.conf](https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/AdBlock/CainiaoAds.conf) 中针对支付宝菜鸟小程序的 4 条公开 API 重写规则及其 `guide-acs.m.taobao.com`、`acs4miniapp-inner.m.taobao.com` MITM 主机。视频里看到的菜鸟/支付宝小程序商品推荐属于 API 响应内容，使用 URL 重写比把整个 `taobao.com` 加入 HOST 拦截更不容易影响小程序正常功能。
 
 铁路 12306 相关的 `ad.12306.cn` 与 `12306media.com` 已经存在于 `QuantumultX/AdBlock.list`，本次没有重复添加未经验证的接口规则。
 
