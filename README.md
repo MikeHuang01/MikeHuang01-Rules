@@ -6,14 +6,15 @@
 
 ### QuantumultX
 
-在 QuantumultX 的“设置 → 配置文件 → 分流”中添加远程资源：
+在 QuantumultX 的“设置 → 配置文件 → 分流”中添加 Direct 与 AdBlock 远程规则；`AdvertisingLite.conf` 则添加到远程重写（`rewrite_remote`），不要作为分流规则导入：
 
-| 用途 | 远程分流地址 |
+| 用途 | 远程资源地址 |
 | --- | --- |
 | 直连（自动同步上游 + 你的自定义规则） | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/Direct.list` |
 | 去广告与劫持拦截 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/AdBlock.list` |
+| 支付宝/菜鸟小程序广告重写（视频对应场景） | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/AdvertisingLite.conf` |
 
-添加后将对应策略保持为文件中的 `Direct` / `REJECT`，并确认分流顺序符合自己的需要。中国大陆网络访问 `raw.githubusercontent.com` 不稳定时，可把域名替换为可用的 GitHub Raw 镜像，文件路径保持不变。
+AdBlock 规则应排在 Direct 规则之前，避免 `ad.12306.cn` 这类同时出现在直连与拦截集的域名被更早的 `Direct` 规则放行。启用重写还需要在 QuantumultX 中启用 MITM 并信任其证书；新增文件已列出该小程序 API 所需主机。中国大陆网络访问 `raw.githubusercontent.com` 不稳定时，可把域名替换为可用的 GitHub Raw 镜像，文件路径保持不变。
 
 ### Shadowrocket
 
@@ -75,6 +76,10 @@ python3 scripts/sync-direct.py
 ## 广告规则
 
 去广告规则来自 blackmatrix7 的 Advertising 与 Hijacking 列表。Hijacking 中与 Advertising 重复的条目会被跳过，最终都转换为 `REJECT` 便于排查误拦截。
+
+`QuantumultX/AdvertisingLite.conf` 是基于 blackmatrix7 `AdvertisingLite.conf` 的可直接导入版本，额外合并了 [ddgksf2013/Rewrite 的 CainiaoAds.conf](https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/AdBlock/CainiaoAds.conf) 中针对支付宝菜鸟小程序的 4 条公开 API 重写规则，并补充其 `guide-acs.m.taobao.com` 与 `acs4miniapp-inner.m.taobao.com` MITM 主机。视频里看到的菜鸟/支付宝小程序商品推荐属于 API 响应内容，使用 URL 重写比把整个 `taobao.com` 加入 HOST 拦截更不容易影响小程序正常功能。
+
+铁路 12306 相关的 `ad.12306.cn` 与 `12306media.com` 已经存在于 `QuantumultX/AdBlock.list`，本次没有重复添加未经验证的接口规则。
 
 ## 来源与维护
 
