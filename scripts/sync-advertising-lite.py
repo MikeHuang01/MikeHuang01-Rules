@@ -24,7 +24,16 @@ CUSTOM_RULES = [
     r"^https?:\/\/[a-zA-Z0-9_.-]+\.taobao\.com\/gw\/mtop\.alimama\.abyss\.unionpage\.get url reject-200",
     r"^https?:\/\/[a-zA-Z0-9_.-]+\.taobao\.com\/gw\/mtop\.cainiao\.adx\.flyad\.getad url reject-200",
 ]
-CUSTOM_HOSTS = ["guide-acs.m.taobao.com", "acs4miniapp-inner.m.taobao.com"]
+CUSTOM_RULES.extend([
+    r"^https?:\/\/api\.hellobike\.com\/api(?:\?.*)?$ url script-response-body https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/targeted-ad-response.js",
+    r"^https?:\/\/wx\.mygolbs\.com\/WxBusServer\/ApiData\.do(?:\?.*)?$ url script-response-body https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/targeted-ad-response.js",
+])
+CUSTOM_HOSTS = [
+    "guide-acs.m.taobao.com",
+    "acs4miniapp-inner.m.taobao.com",
+    "api.hellobike.com",
+    "wx.mygolbs.com",
+]
 COUNT_NAMES = ("HOST", "HOST-KEYWORD", "IP-CIDR", "IP6-CIDR", "REJECT", "MITM", "TOTAL")
 
 
@@ -69,9 +78,9 @@ def main() -> int:
     rules_to_add = [rule for rule in CUSTOM_RULES if rule.casefold() not in existing_rules]
     mitm_index = mitm_indexes[0]
     block = [
-        "# --- MikeHuang01 custom Alipay/Cainiao mini-program ads ---",
-        f"# Source: {CUSTOM_SOURCE}",
-        "# Reject only ad/recommendation API paths; do not block taobao.com globally.",
+        "# --- MikeHuang01 targeted app-ad response filters ---",
+        f"# Cainiao rules source: {CUSTOM_SOURCE}",
+        "# The response script changes only recognized ad payload shapes on shared API paths.",
         *rules_to_add,
         "",
     ]
