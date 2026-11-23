@@ -6,8 +6,10 @@ import os
 import re
 import sys
 import tempfile
-import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from rulelib import fetch  # noqa: E402  (shared retry + offline cache)
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "QuantumultX" / "AdvertisingLite.conf"
@@ -54,9 +56,7 @@ def set_count(lines: list[str], name: str, value: int) -> None:
 
 
 def main() -> int:
-    request = urllib.request.Request(UPSTREAM, headers={"User-Agent": "MikeHuang01-Rules-sync/1.0"})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        upstream_text = response.read().decode("utf-8-sig")
+    upstream_text = fetch(UPSTREAM)
     lines = upstream_text.replace("\r\n", "\n").replace("\r", "\n").splitlines()
     if not lines or not lines[0].startswith("# NAME:"):
         raise ValueError("Downloaded file does not look like a Quantumult X rule resource")

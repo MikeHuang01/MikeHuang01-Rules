@@ -19,20 +19,42 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Fetch upstream and merge custom rules
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check generated scripts compile
+        run: python -m compileall -q scripts
+
+      - name: Fetch upstream and regenerate every rule file
         run: |
-          python3 scripts/sync-direct.py
-          python3 scripts/sync-advertising-lite.py
+          python scripts/sync-direct.py
+          python scripts/sync-adblock.py
+          python scripts/sync-advertising-lite.py
+
+      - name: Verify generated resources
+        run: python scripts/check-rules.py
 
       - name: Commit changed generated rules
         shell: bash
         run: |
-          if git diff --quiet -- QuantumultX/Direct.list Shadowrocket/Direct.conf QuantumultX/AdvertisingLite.conf; then
+          # 只提交自动生成的产物；CustomDirect.list 与 targeted-ad-response.js 是手写文件，永远不被覆盖。
+          FILES=(
+            QuantumultX/Direct.list
+            QuantumultX/DirectGeo.list
+            QuantumultX/AdBlock.list
+            QuantumultX/AdvertisingLite.conf
+            Shadowrocket/Direct.conf
+            Shadowrocket/DirectGeo.conf
+            Shadowrocket/AdBlock.conf
+          )
+          git add -- "${FILES[@]}"
+          if git diff --cached --quiet; then
             echo "No rule changes."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add QuantumultX/Direct.list Shadowrocket/Direct.conf QuantumultX/AdvertisingLite.conf
           git commit -m "Sync upstream rules"
           git push
