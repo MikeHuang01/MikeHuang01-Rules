@@ -55,7 +55,7 @@ https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX
 https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/AdvertisingLite.conf, tag=AdvertisingLite, enabled=true
 ```
 
-`AdvertisingLite.conf` **只能**加到「重写」，不要加到「分流」，否则会被当成一条规则解析失败。启用重写还必须在 QX 中开启 MITM 并信任证书，文件末尾的 `hostname = ...`（910 个主机）就是 MITM 域名列表。
+`AdvertisingLite.conf` **只能**加到「重写」，不要加到「分流」，否则会被当成一条规则解析失败。启用重写还必须在 QX 中开启 MITM 并信任证书，文件末尾的 `hostname = ...`（912 个主机）就是 MITM 域名列表。
 
 ### 3. 分流与重写的分工
 
@@ -131,7 +131,7 @@ IP-CIDR,192.0.2.0/24,direct,no-resolve  网段直连
 
 1. `sync-direct.py`：合并上游 Direct 与自定义规则，拆成 `Direct.list` + `DirectGeo.list`，并生成 Shadowrocket 版本；
 2. `sync-adblock.py`：合并上游 Advertising + Hijacking，统一 `REJECT`，生成 `AdBlock.list` 与 Shadowrocket 版本；
-3. `sync-advertising-lite.py`：重新下载上游 `AdvertisingLite.conf`，补回支付宝/菜鸟 3 条明确广告 API 重写、哈啰与掌上公交 2 条响应脚本规则及所需 MITM 主机；
+3. `sync-advertising-lite.py`：重新下载上游 `AdvertisingLite.conf`，补回支付宝/菜鸟 3 条明确广告 API 规则、12306 与菜鸟 2 条抓包确认的广告响应规则、哈啰与掌上公交 2 条响应脚本规则及所需 MITM 主机；
 4. `check-rules.py`：校验规则类型、字段、重复项和分层契约，**校验不通过就不提交**；
 5. 只有生成内容确实变化时才自动提交。
 
@@ -164,9 +164,9 @@ RULES_UPSTREAM_CACHE=./upstream-cache python3 scripts/sync-adblock.py
 
 去广告规则来自 blackmatrix7 的 Advertising 与 Hijacking 列表。Hijacking 中与 Advertising 重复的条目会被跳过，最终都转换为 `REJECT` 便于排查误拦截。
 
-`QuantumultX/AdvertisingLite.conf` 由仓库的每 6 小时同步任务从 blackmatrix7 上游重新生成，并自动合并 3 条支付宝内菜鸟小程序广告 API 规则，以及 2 条基于抓包的应用专用响应脚本规则。脚本见 [`QuantumultX/targeted-ad-response.js`](QuantumultX/targeted-ad-response.js)：哈啰只清空 `api.hellobike.com/api` 响应中带 `creative` 的 `data.adm` 广告记录；掌上公交只识别抓包确认的广告配置响应，关闭 `indexAd`、`lineAd`、`bannerAd`、`ztAdCover` 等布尔开关并清空广告专属字段。路线/站点等其他 JSON 响应不符合该结构时原样放行；值为 `10` 的 `interstitialAd` 因语义不明而保留。
+`QuantumultX/AdvertisingLite.conf` 由仓库的每 6 小时同步任务从 blackmatrix7 上游重新生成，并自动合并 3 条支付宝内菜鸟小程序广告 API 规则、12306 配置接口和菜鸟已抓包的广告记录接口响应规则，以及哈啰与掌上公交的响应脚本规则。脚本见 [`QuantumultX/targeted-ad-response.js`](QuantumultX/targeted-ad-response.js)：12306 只关闭 `data.ads_banner_conf[].conf[]` 中明确为 `isShow=true` 的 banner；菜鸟只清空已识别的 `materialId` + `materialContentMapper`/`adUtArgs` 广告记录数组；哈啰只清空 `api.hellobike.com/api` 响应中带 `creative` 的 `data.adm` 广告记录；掌上公交只识别抓包确认的广告配置响应，关闭 `indexAd`、`lineAd`、`bannerAd`、`ztAdCover` 等布尔开关并清空广告专属字段。路线/站点等其他 JSON 响应、菜鸟非广告数组和未识别接口均原样放行；值为 `10` 的 `interstitialAd` 因语义不明而保留。
 
-本次抓包没有出现哈啰开屏广告请求，不能据此宣称开屏已验证；支付宝出行也只有 SDK 模板和不透明的网关记录，没有可安全定位的广告内容接口，因此暂不加规则。若要继续定位这两个位置，请在广告实际显示时分别重新抓包。上游另有一条被标注为“匿名选择”的 `researchservice.consultmerge` 规则，本仓库暂不启用，待确认其确属广告接口后再考虑添加。菜鸟 mini-program 的 `*.taobao.com` 接口规则按上游原样匹配；上游针对 `*.cainiao.com` 的原生菜鸟 App 规则才带 `_home` 排除条件，不能把该例外套用到小程序规则。此资源不等同于“屏蔽支付宝所有广告”，也不覆盖未验证的广告接口，避免误拦登录、支付或小程序核心接口。
+本次抓包没有出现哈啰开屏广告请求，哈啰规则不作扩展。实时公交抓包中仅 CMD=115 命中广告配置 envelope；广告短暂闪现尚无法归因，`interstitialAd=10` 的含义未确认因此保留，当前改写仅处理已识别配置中的明确广告字段，不宣称已解决短闪。若要继续定位，需在广告实际显示时重新抓包。支付宝出行也只有 SDK 模板和不透明的网关记录，没有可安全定位的广告内容接口，因此暂不加规则。上游另有一条被标注为“匿名选择”的 `researchservice.consultmerge` 规则，本仓库暂不启用，待确认其确属广告接口后再考虑添加。菜鸟 mini-program 的 `*.taobao.com` 接口规则按上游原样匹配；上游针对 `*.cainiao.com` 的原生菜鸟 App 规则才带 `_home` 排除条件，不能把该例外套用到小程序规则。此资源不等同于“屏蔽支付宝所有广告”，也不覆盖未验证的广告接口，避免误拦登录、支付或小程序核心接口。
 
 铁路 12306 相关的 `ad.12306.cn` 与 `12306media.com` 已存在于 `QuantumultX/AdBlock.list`。blackmatrix7 上游 Direct 也包含精确主机 `ad.12306.cn`；为避免该广告主机绕过 `REJECT`，`sync-direct.py` 会从自定义与上游输入中排除这条直连规则。
 

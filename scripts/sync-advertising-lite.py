@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch blackmatrix7 AdvertisingLite and reapply local Alipay/Cainiao rules."""
+"""Fetch blackmatrix7 AdvertisingLite and reapply targeted local app-ad rules."""
 from __future__ import annotations
 
 import os
@@ -27,12 +27,16 @@ CUSTOM_RULES = [
     r"^https?:\/\/[a-zA-Z0-9_.-]+\.taobao\.com\/gw\/mtop\.cainiao\.adx\.flyad\.getad url reject-200",
 ]
 CUSTOM_RULES.extend([
+    r"^https?:\/\/mobile\.12306\.cn\/wxxcx\/alipay\/main\/conf(?:\?.*)?$ url script-response-body https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/targeted-ad-response.js",
+    r"^https?:\/\/netflow-mtop\.cainiao\.com\/gw\/mtop\.cainiao\.guoguo\.nbnetflow\.ads\.(?:batch\.show|mshow|show(?:\.login)?)\/\d+(?:\.\d+)*(?:\?.*)?$ url script-response-body https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/targeted-ad-response.js",
     r"^https?:\/\/api\.hellobike\.com\/api(?:\?.*)?$ url script-response-body https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/targeted-ad-response.js",
     r"^https?:\/\/wx\.mygolbs\.com\/WxBusServer\/ApiData\.do(?:\?.*)?$ url script-response-body https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/targeted-ad-response.js",
 ])
 CUSTOM_HOSTS = [
     "guide-acs.m.taobao.com",
     "acs4miniapp-inner.m.taobao.com",
+    "mobile.12306.cn",
+    "netflow-mtop.cainiao.com",
     "api.hellobike.com",
     "wx.mygolbs.com",
 ]
