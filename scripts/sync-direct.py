@@ -23,6 +23,7 @@ from rulelib import (
     SR_DIR,
     Rule,
     dedupe,
+    drop_shadowed,
     fetch,
     parse_rules,
     write_if_changed,
@@ -82,6 +83,8 @@ def main() -> int:
         for rule in dedupe(custom_rules + upstream_rules)
         if rule.key not in SUPPRESSED
     ]
+    # HOST,x next to HOST-SUFFIX,x is duplication, not a second rule.
+    merged, shadowed = drop_shadowed(merged)
 
     # Policy names are case-insensitive in both clients; normalise them so the
     # generated files stay diff-friendly (hand-written rules may use any case).
@@ -153,7 +156,8 @@ def main() -> int:
 
     print(
         f"direct custom={len(custom_rules)} network={len(network)} geo={len(geo)} "
-        f"superseded={len(custom_rules) + len(upstream_rules) - len(merged)}"
+        f"superseded={len(custom_rules) + len(upstream_rules) - len(merged) - len(shadowed)} "
+        f"shadowed={len(shadowed)}"
     )
     return 0
 

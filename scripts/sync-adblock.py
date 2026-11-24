@@ -27,6 +27,7 @@ from rulelib import (
     Rule,
     covered_by,
     dedupe,
+    drop_shadowed,
     fetch,
     parse_rule,
     parse_rules,
@@ -57,7 +58,8 @@ def main() -> int:
         if rule.rule_type not in ALLOWED_TYPES:
             continue
         rejected.append(rule.with_policy("REJECT", add_no_resolve=True))
-    merged = dedupe(rejected)
+    # HOST,x next to HOST-SUFFIX,x is duplication, not a second rule.
+    merged, shadowed_rules = drop_shadowed(dedupe(rejected))
 
     qx_lines = [
         "# NAME: AdBlock",
@@ -117,7 +119,12 @@ def main() -> int:
                         examples.append(f"{rule.text}  <-  {candidate.text}")
                     break
 
-    print(f"adblock upstream={len(upstream)} kept={len(merged)} dropped_types={len(upstream) - len(rejected)}")
+    print(
+        f"adblock upstream={len(upstream)} kept={len(merged)} "
+        f"dropped_types={len(upstream) - len(rejected)} shadowed={len(shadowed_rules)}"
+    )
+    for rule in shadowed_rules:
+        print(f"  pruned duplicate: {rule.text}")
     print(f"direct rules protected by ordering: {shadowed}")
     for example in examples:
         print(f"  {example}")

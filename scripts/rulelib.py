@@ -4,8 +4,10 @@ Every generated file in this repository is produced the same way:
 
     upstream rule list  +  hand-maintained local list  ->  deduped output
 
-The helpers below keep that pipeline identical for QuantumultX and
-Shadowrocket so a fix in one generator cannot silently drift from another.
+The helpers below keep that pipeline identical for QuantumultX,
+Shadowrocket and Clash so a fix in one generator cannot silently drift from
+another. Clash is derived from the QuantumultX resources: those stay the
+single source of truth and only the syntax is translated.
 """
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 QX_DIR = ROOT / "QuantumultX"
 SR_DIR = ROOT / "Shadowrocket"
+CLASH_DIR = ROOT / "Clash"
 
 # Rule types that match on the request domain / header, no DNS needed.
 NETWORK_TYPES = {"HOST", "HOST-SUFFIX", "HOST-KEYWORD", "USER-AGENT", "URL-REGEX"}
@@ -32,6 +35,15 @@ SHADOWROCKET_TYPES = {
     "HOST-SUFFIX": "DOMAIN-SUFFIX",
     "HOST-KEYWORD": "DOMAIN-KEYWORD",
 }
+
+# Clash (mihomo) shares the DOMAIN* vocabulary with Shadowrocket.
+# IPv6 CIDRs are the one real naming difference: QuantumultX writes IP6-CIDR,
+# mihomo writes IP-CIDR6 and silently ignores the QX spelling.
+CLASH_TYPES = {**SHADOWROCKET_TYPES, "IP6-CIDR": "IP-CIDR6"}
+
+# mihomo removed USER-AGENT in v1.19 and has no MITM, so URL-REGEX/script
+# rewrites cannot be expressed either.
+CLASH_UNSUPPORTED = {"USER-AGENT", "URL-REGEX"}
 
 USER_AGENT = "MikeHuang01-Rules-sync/2.0"
 
@@ -99,6 +111,40 @@ def dedupe(rules) -> list[Rule]:
         seen.add(rule.key)
         result.append(rule)
     return result
+
+
+def drop_shadowed(rules) -> tuple[list[Rule], list[Rule]]:
+    '''Prune rules that are already covered by another rule in the same file.
+
+    Only the provably safe, exact case is pruned: a HOST,x rule next to a
+    HOST-SUFFIX,x rule. The suffix rule matches every host the HOST rule
+    matches, so keeping both is pure duplication (geo2.adobe.com was the one
+    real case in the AdBlock snapshot). Suffix-inside-suffix overlaps are only
+    reported by check-rules.py, so broad deletions stay visible in review.
+    '''
+    suffix_values = {rule.value.lower() for rule in rules if rule.rule_type == 'HOST-SUFFIX'}
+    kept: list[Rule] = []
+    dropped: list[Rule] = []
+    for rule in rules:
+        if rule.rule_type == 'HOST' and rule.value.lower() in suffix_values:
+            dropped.append(rule)
+        else:
+            kept.append(rule)
+    return kept, dropped
+
+
+def to_clash(rule: Rule) -> tuple[str, str] | None:
+    '''Translate one rule into a Clash (type, value) match condition.
+
+    Returns None when mihomo cannot express the rule at all. A Clash
+    rule-provider carries no policy, so the action is dropped on purpose:
+    the policy comes from the RULE-SET line that references the provider.
+    '''
+    if rule.rule_type in CLASH_UNSUPPORTED:
+        return None
+    rule_type = CLASH_TYPES.get(rule.rule_type, rule.rule_type)
+    value = rule.value.upper() if rule_type == 'GEOIP' else rule.value
+    return rule_type, value
 
 
 def fetch(url: str, *, attempts: int = 3, timeout: int = 120) -> str:

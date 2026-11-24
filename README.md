@@ -1,6 +1,6 @@
 # MikeHuang01 规则配置
 
-面向 **QuantumultX** 与 **Shadowrocket** 的去广告、直连与重写规则集。
+面向 **QuantumultX**、**Shadowrocket** 与 **Clash (mihomo)** 的去广告、直连与重写规则集。三端规则同源：Clash 与 Shadowrocket 版本都由 `QuantumultX/` 生成。
 
 所有规则文件都由「上游 blackmatrix7 规则 + 本仓库手写规则」自动生成，手写内容只放在两个入口文件里，不会被同步覆盖。
 
@@ -18,11 +18,17 @@ Shadowrocket/
   Direct.conf              自动生成  DOMAIN 语法直连
   AdBlock.conf             自动生成  DOMAIN 语法拦截
   DirectGeo.conf           自动生成  DOMAIN 语法兜底直连
+Clash/
+  README.md                手写维护  三端差异与 Clash 注意事项
+  Direct.yaml              自动生成  Clash 规则提供器：具体域名直连
+  AdBlock.yaml             自动生成  Clash 规则提供器：去广告 / 劫持拦截
+  DirectGeo.yaml           自动生成  Clash 规则提供器：兜底直连
 scripts/
   rulelib.py               共享：规则解析、去重、带重试的下载、原子写入
   sync-direct.py           生成 Direct / DirectGeo（QX + Shadowrocket）
   sync-adblock.py          生成 AdBlock（QX + Shadowrocket）
   sync-advertising-lite.py 生成 AdvertisingLite.conf
+  sync-clash.py            生成 Clash 三份规则提供器（源 = QuantumultX/）
   check-rules.py           生成后校验（Actions 里跑，本地也能跑）
 .github/workflows/sync-direct.yml  每 6 小时同步一次
 ```
@@ -80,7 +86,40 @@ https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX
 
 Shadowrocket 侧把 `HOST` 转成 `DOMAIN`、`HOST-SUFFIX` 转成 `DOMAIN-SUFFIX`、`HOST-KEYWORD` 转成 `DOMAIN-KEYWORD`，IP 网段统一附加 `no-resolve`，策略名统一大写 `DIRECT` / `REJECT`。
 
-## 四、添加自己的规则
+## 四、Clash / mihomo 导入
+
+Clash 侧的三份资源由 `scripts/sync-clash.py` 从 `QuantumultX/` 直接生成，与 QX 是同一套规则，只是语法不同：
+
+| 用途 | 远程地址 | 对应 QX 资源 |
+| --- | --- | --- |
+| 直连 | `https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/Direct.yaml` | `Direct.list` |
+| 去广告 | `https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/AdBlock.yaml` | `AdBlock.list` |
+| 兜底直连 | `https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/DirectGeo.yaml` | `DirectGeo.list` |
+
+```yaml
+rule-providers:
+  direct:    {type: http, behavior: classical, url: "https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/Direct.yaml",    path: ./ruleset/direct.yaml,    interval: 86400}
+  adblock:   {type: http, behavior: classical, url: "https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/AdBlock.yaml",   path: ./ruleset/adblock.yaml,   interval: 86400}
+  directgeo: {type: http, behavior: classical, url: "https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/DirectGeo.yaml", path: ./ruleset/directgeo.yaml, interval: 86400}
+
+rules:
+  - RULE-SET,direct,🎯 直连        # 第 1 层：具体直连
+  - RULE-SET,adblock,🛑 广告拦截    # 第 2 层：去广告
+  - RULE-SET,directgeo,🎯 直连      # 第 3 层：兜底直连
+  - MATCH,🚀 节点选择
+```
+
+与 QX / Shadowrocket 的三个关键差异（细节见 [Clash/README.md](Clash/README.md)）：
+
+| 差异 | 说明 |
+| --- | --- |
+| 规则集不带策略 | Clash 的 rule-provider 只提供匹配条件，动作写在引用它的 `RULE-SET` 那一行 |
+| 顺序由配置决定 | QX 按 `[filter_remote]` 的导入顺序匹配，Clash 按 `rules:` 里的先后匹配，契约相同、控制点不同 |
+| 没有 MITM 重写 | `AdvertisingLite.conf` 的 1242 条 rewrite 依赖 MITM + JS，mihomo 无法迁移；`USER-AGENT` 规则也已从 mihomo 移除 |
+
+**因此 Clash 侧的去广告覆盖面等于 QX 的分流层，不等于 QX 的重写层。** 需要 `reject-dict` / 响应脚本才能清干净的接口型广告，只能留在 QX 侧。
+
+## 五、添加自己的规则
 
 **只改 `QuantumultX/CustomDirect.list`**，在文件末尾追加。`Direct.list`、`AdBlock.list` 等自动生成的文件会在下次同步时被覆盖。
 
@@ -118,7 +157,7 @@ IP-CIDR,192.0.2.0/24,direct,no-resolve  网段直连
 
 去重键是「规则类型 + 匹配值」（不区分大小写）：`HOST,ad.12306.cn,DIRECT` 与 `host, ad.12306.cn, direct` 视为同一条，自定义规则优先保留。
 
-## 五、自动同步
+## 六、自动同步
 
 上游来源：
 
@@ -132,8 +171,9 @@ IP-CIDR,192.0.2.0/24,direct,no-resolve  网段直连
 1. `sync-direct.py`：合并上游 Direct 与自定义规则，拆成 `Direct.list` + `DirectGeo.list`，并生成 Shadowrocket 版本；
 2. `sync-adblock.py`：合并上游 Advertising + Hijacking，统一 `REJECT`，生成 `AdBlock.list` 与 Shadowrocket 版本；
 3. `sync-advertising-lite.py`：重新下载上游 `AdvertisingLite.conf`，补回支付宝/菜鸟 3 条明确广告 API 规则、12306 与菜鸟 2 条抓包确认的广告响应规则、哈啰与掌上公交 2 条响应脚本规则及所需 MITM 主机；
-4. `check-rules.py`：校验规则类型、字段、重复项和分层契约，**校验不通过就不提交**；
-5. 只有生成内容确实变化时才自动提交。
+4. `sync-clash.py`：从 `QuantumultX/` 生成 `Clash/Direct.yaml`、`AdBlock.yaml`、`DirectGeo.yaml`（同一套规则，仅语法不同）；
+5. `check-rules.py`：校验规则类型、字段、重复项、被遮蔽规则和分层契约，三端一起校验，**校验不通过就不提交**；
+6. 只有生成内容确实变化时才自动提交。
 
 GitHub 定时任务可能有几分钟到更长时间的执行延迟。需要立即同步时，打开上面的链接，点击 **Run workflow**，选择 **main** 分支运行。
 
@@ -144,6 +184,7 @@ pip install --upgrade pip            # 仅需标准库，无需第三方包
 python3 scripts/sync-direct.py
 python3 scripts/sync-adblock.py
 python3 scripts/sync-advertising-lite.py
+python3 scripts/sync-clash.py
 python3 scripts/check-rules.py
 ```
 
@@ -153,14 +194,14 @@ python3 scripts/check-rules.py
 RULES_UPSTREAM_CACHE=./upstream-cache python3 scripts/sync-adblock.py
 ```
 
-## 六、为什么这样分层
+## 七、为什么这样分层
 
 历史上 `Direct.list` 与 `AdBlock.list` 都放在「分流」里，容易出现的两个问题是：
 
 1. **宽泛拦截吃掉直连**：AdBlock 里的 `HOST-SUFFIX,l.qq.com,REJECT`、`HOST-KEYWORD,umeng,REJECT` 会命中 Direct 里写的 `fairplay.l.qq.com`、`msg.umeng.com` 等具体直连域名。QX 按顺序匹配，先命中的生效，所以这些直连规则其实从未生效（当前共有 **24 条**处于这种状态）。把 `Direct.list` 放到 `AdBlock.list` 之前即修复，`sync-adblock.py` 每次都会打印这 24 条，便于复核。
 2. **`geoip,cn` 放错位置**：如果 `geoip,cn,direct` 排在 AdBlock 之前，国内广告域名会全部直连放行，去广告形同虚设。因此把它单独拆到 `DirectGeo.list`，排在 AdBlock 之后。
 
-## 七、广告规则说明
+## 八、广告规则说明
 
 去广告规则来自 blackmatrix7 的 Advertising 与 Hijacking 列表。Hijacking 中与 Advertising 重复的条目会被跳过，最终都转换为 `REJECT` 便于排查误拦截。
 
@@ -170,7 +211,7 @@ RULES_UPSTREAM_CACHE=./upstream-cache python3 scripts/sync-adblock.py
 
 铁路 12306 相关的 `ad.12306.cn` 与 `12306media.com` 已存在于 `QuantumultX/AdBlock.list`。blackmatrix7 上游 Direct 也包含精确主机 `ad.12306.cn`；为避免该广告主机绕过 `REJECT`，`sync-direct.py` 会从自定义与上游输入中排除这条直连规则。
 
-## 八、故障排查
+## 九、故障排查
 
 | 现象 | 先查这里 |
 | --- | --- |
@@ -179,8 +220,11 @@ RULES_UPSTREAM_CACHE=./upstream-cache python3 scripts/sync-adblock.py
 | 某个 App 功能被误拦 | 在该 App 域名上抓到具体主机名后写入 `CustomDirect.list`，脚本会保证它优先于 AdBlock |
 | 重写没生效 | 是否加到 `[rewrite_remote]`、MITM 是否开启并信任证书 |
 | 支付宝/菜鸟广告 | 只覆盖已抓包确认的接口，未确认的接口不会被误拦 |
+| Clash 规则集加载 0 条 | `behavior` 是否写成 `domain`（必须 `classical`）；是否误挂了 QX 的 `.list` |
+| Clash 启动时报 ASN.mmdb 下载失败 | 把 `ASN.mmdb` 放进 mihomo 工作目录（`-d` 指向的位置） |
+| Clash 去广告不如 QX 彻底 | 预期行为：QX 还有 MITM 重写层，Clash 没有，见 [Clash/README.md](Clash/README.md) |
 
-## 九、来源与维护
+## 十、来源与维护
 
 上游规则：[blackmatrix7/ios_rule_script](https://github.com/blackmatrix7/ios_rule_script)。上游的版权与许可归原作者所有；本项目只做整合、去重和客户端格式转换，并保留作者与仓库信息。
 
