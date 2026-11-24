@@ -133,17 +133,16 @@ rules:
 
 ## 五、添加自己的规则
 
-**只改 `QuantumultX/CustomDirect.list`**，在文件末尾追加。`Direct.list`、`AdBlock.list` 等自动生成的文件会在下次同步时被覆盖。
+**只改两个手写文件**，在文件末尾追加。其余全是自动生成的，下次同步会被覆盖：
 
-`CustomDirect.list` 目前包含这些自定义直连（同步时始终优先保留）：
+| 手写文件 | 放进这里的规则 | 生成到 |
+| --- | --- | --- |
+| `QuantumultX/CustomDirect.list` | 直连（`HOST` / `HOST-SUFFIX` / `HOST-KEYWORD` / `IP-CIDR` / `IP-ASN` / `GEOIP`） | `Direct.list` + `DirectGeo.list` |
+| `QuantumultX/CustomProxy.list` | 代理（同样是 `HOST` / `HOST-SUFFIX` / `HOST-KEYWORD`） | `ProxyLocal.list` |
+
+`CustomDirect.list` 目前只剩兜底直连这一段（同步时始终优先保留）：
 
 ```text
-# > 容易忽视的直连分流
-host, sdkapp.uve.weibo.com, direct
-host, akkcloud.org, direct
-host, psac3.aoppsac.com, direct
-host, go.toter.me, direct
-
 # > 本地网络与国内直连
 ip-cidr, 10.0.0.0/8, direct
 ip-cidr, 127.0.0.0/8, direct
@@ -152,9 +151,34 @@ ip-cidr, 192.168.0.0/16, direct
 ip-cidr, 224.0.0.0/24, direct
 ip-cidr, 182.254.116.0/24, direct
 IP-ASN,132203,Direct
-host, wanwanzhou.top, direct
 geoip, cn, direct
 ```
+
+> 以前这里有 5 条具体主机（`sdkapp.uve.weibo.com`、`akkcloud.org`、`psac3.aoppsac.com`、`go.toter.me`、`wanwanzhou.top`），已按要求删除：它们都不在 blackmatrix7 上游列表里，删掉即从三端彻底消失。
+
+`CustomProxy.list` 目前包含 github 关键词与 13 条 DNS Leak：
+
+```text
+# > 一些比较容易忽视的分流
+host-keyword, github, proxy
+
+# > DNS Leak
+host-suffix, astrill.com, proxy
+host-suffix, dnsleaktest.com, proxy
+host-suffix, dnsleak.com, proxy
+host-suffix, expressvpn.com, proxy
+host-suffix, nordvpn.com, proxy
+host-suffix, surfshark.com, proxy
+host-suffix, ipleak.net, proxy
+host-suffix, perfect-privacy.com, proxy
+host-suffix, browserleaks.com, proxy
+host-suffix, browserleaks.org, proxy
+host-suffix, vpnunlimited.com, proxy
+host-suffix, whoer.net, proxy
+host-suffix, whrq.net, proxy
+```
+
+**别把这些写回 QX 的 `[filter_local]`。** 那里的优先级高于所有远程资源，`host-keyword, github` 会抢走 `AdBlock.list` 里的 `collector.github.com` 等遥测域名，去广告就失效了 —— 这也是它们要单独成层、排在第 3 位的原因。
 
 常见写法：
 
@@ -165,9 +189,9 @@ HOST-KEYWORD,example,direct             域名中含该字符串
 IP-CIDR,192.0.2.0/24,direct,no-resolve  网段直连
 ```
 
-脚本会按规则类型自动分流：`HOST` / `HOST-SUFFIX` / `HOST-KEYWORD` / `USER-AGENT` / `URL-REGEX` 写进 `Direct.list`，`IP-CIDR` / `IP6-CIDR` / `IP-ASN` / `GEOIP` 写进 `DirectGeo.list`，你不必关心该加到哪一份。策略名大小写会统一成 `direct`。
+`CustomDirect.list` 里脚本会按规则类型自动分流：`HOST` / `HOST-SUFFIX` / `HOST-KEYWORD` / `USER-AGENT` / `URL-REGEX` 进 `Direct.list`，`IP-CIDR` / `IP6-CIDR` / `IP-ASN` / `GEOIP` 进 `DirectGeo.list`，策略名统一成小写 `direct`。`CustomProxy.list` 只接受 `HOST` / `HOST-SUFFIX` / `HOST-KEYWORD`，策略统一成 `proxy`。
 
-去重键是「规则类型 + 匹配值」（不区分大小写）：`HOST,ad.12306.cn,DIRECT` 与 `host, ad.12306.cn, direct` 视为同一条，自定义规则优先保留。
+去重键是「规则类型 + 匹配值」（不区分大小写）：`HOST,ad.12306.cn,DIRECT` 与 `host, ad.12306.cn, direct` 视为同一条，自定义规则优先保留。另外 `HOST,x` 与 `HOST-SUFFIX,x` 同时存在时，前者会被自动删掉（后者已覆盖它），`check-rules.py` 会把这类遮蔽报成错误。
 
 ## 六、自动同步
 
@@ -212,10 +236,12 @@ RULES_UPSTREAM_CACHE=./upstream-cache python3 scripts/sync-adblock.py
 
 历史上 `Direct.list` 与 `AdBlock.list` 都放在「分流」里，容易出现的两个问题是：
 
-0. **宽泛代理规则吃掉去广告**：`host-keyword, github, proxy` 如果放在 `AdBlock` 之前（或继续留在 QX 的 `[filter_local]` 里），会把 `AdBlock` 中 `collector.github.com`、`collector-cdn.github.com`、`copilot-telemetry.githubusercontent.com` 三条遥测域名抢成 proxy，GitHub 遥测广告就再也拦不住。因此自定义代理单独成层 `ProxyLocal.list`，位置固定在第 3 层（去广告之后、国内大表之前）。
+**两个方向都会出问题。**
 
-1. **宽泛拦截吃掉直连**：AdBlock 里的 `HOST-SUFFIX,l.qq.com,REJECT`、`HOST-KEYWORD,umeng,REJECT` 会命中 Direct 里写的 `fairplay.l.qq.com`、`msg.umeng.com` 等具体直连域名。QX 按顺序匹配，先命中的生效，所以这些直连规则其实从未生效（当前共有 **24 条**处于这种状态）。把 `Direct.list` 放到 `AdBlock.list` 之前即修复，`sync-adblock.py` 每次都会打印这 24 条，便于复核。
-2. **`geoip,cn` 放错位置**：如果 `geoip,cn,direct` 排在 AdBlock 之前，国内广告域名会全部直连放行，去广告形同虚设。因此把它单独拆到 `DirectGeo.list`，排在 AdBlock 之后。
+1. **宽泛代理规则吃掉去广告**：`host-keyword, github, proxy` 如果放在 `AdBlock` 之前（或继续留在 QX 的 `[filter_local]` 里），会把 `AdBlock` 中 `collector.github.com`、`collector-cdn.github.com`、`copilot-telemetry.githubusercontent.com` 三条遥测域名抢成 proxy，GitHub 遥测广告就再也拦不住。因此自定义代理单独成层 `ProxyLocal.list`，位置固定在第 3 层（去广告之后、国内大表之前）。
+
+2. **宽泛拦截吃掉直连**：AdBlock 里的 `HOST-SUFFIX,l.qq.com,REJECT`、`HOST-KEYWORD,umeng,REJECT` 会命中 Direct 里写的 `fairplay.l.qq.com`、`msg.umeng.com` 等具体直连域名。QX 按顺序匹配，先命中的生效，所以这些直连规则其实从未生效（当前共有 **23 条**处于这种状态）。把 `Direct.list` 放到 `AdBlock.list` 之前即修复，`sync-adblock.py` 每次都会打印这 23 条，便于复核。
+3. **`geoip,cn` 放错位置**：如果 `geoip,cn,direct` 排在 AdBlock 之前，国内广告域名会全部直连放行，去广告形同虚设。因此把它单独拆到 `DirectGeo.list`，排在 AdBlock 之后。
 
 ## 八、广告规则说明
 
