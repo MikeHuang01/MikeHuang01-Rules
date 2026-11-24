@@ -6,14 +6,9 @@
 # CUSTOM SOURCE: QuantumultX/CustomDirect.list
 # UPSTREAM: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Direct/Direct.list
 # 用途：具体域名直连。请排在 AdBlock 之前。
-# TOTAL: 236
+# TOTAL: 231
 # 去重键：规则类型 + 匹配值（不区分大小写）
 
-HOST,sdkapp.uve.weibo.com,direct
-HOST,akkcloud.org,direct
-HOST,psac3.aoppsac.com,direct
-HOST,go.toter.me,direct
-HOST,wanwanzhou.top,direct
 HOST,ad.10010.com,direct
 HOST,ain.bgm.tv,direct
 HOST,alt1-mtalk.google.com,direct

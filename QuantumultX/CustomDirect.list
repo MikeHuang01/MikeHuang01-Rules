@@ -4,12 +4,6 @@
 # 自动同步会先保留这里的规则，再合并 blackmatrix7 的上游 Direct 列表并去重。
 # `ad.12306.cn` 由同步脚本从所有 Direct 输入中排除，因为 AdBlock 会拒绝该广告主机。
 
-# > 容易忽视的直连分流
-host, sdkapp.uve.weibo.com, direct
-host, akkcloud.org, direct
-host, psac3.aoppsac.com, direct
-host, go.toter.me, direct
-
 # > 本地网络与国内直连
 ip-cidr, 10.0.0.0/8, direct
 ip-cidr, 127.0.0.0/8, direct
@@ -18,5 +12,4 @@ ip-cidr, 192.168.0.0/16, direct
 ip-cidr, 224.0.0.0/24, direct
 ip-cidr, 182.254.116.0/24, direct
 IP-ASN,132203,Direct
-host, wanwanzhou.top, direct
 geoip, cn, direct
