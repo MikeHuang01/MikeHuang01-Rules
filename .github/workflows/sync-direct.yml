@@ -32,6 +32,7 @@ jobs:
           python scripts/sync-direct.py
           python scripts/sync-adblock.py
           python scripts/sync-advertising-lite.py
+          python scripts/sync-proxy.py
           python scripts/sync-clash.py
 
       - name: Verify generated resources
@@ -45,13 +46,16 @@ jobs:
             QuantumultX/Direct.list
             QuantumultX/DirectGeo.list
             QuantumultX/AdBlock.list
+            QuantumultX/ProxyLocal.list
             QuantumultX/AdvertisingLite.conf
             Shadowrocket/Direct.conf
             Shadowrocket/DirectGeo.conf
             Shadowrocket/AdBlock.conf
+            Shadowrocket/ProxyLocal.conf
             Clash/Direct.yaml
             Clash/AdBlock.yaml
             Clash/DirectGeo.yaml
+            Clash/ProxyLocal.yaml
           )
           git add -- "${FILES[@]}"
           if git diff --cached --quiet; then

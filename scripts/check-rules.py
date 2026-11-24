@@ -68,9 +68,11 @@ EXPECTED = {
     QX_DIR / "Direct.list": {"policy_any": {"direct"}},
     QX_DIR / "DirectGeo.list": {"policy_any": {"direct"}},
     QX_DIR / "AdBlock.list": {"policy_any": {"reject"}},
+    QX_DIR / "ProxyLocal.list": {"policy_any": {"proxy"}},
     SR_DIR / "Direct.conf": {"policy_any": {"direct"}},
     SR_DIR / "DirectGeo.conf": {"policy_any": {"direct"}},
     SR_DIR / "AdBlock.conf": {"policy_any": {"reject"}},
+    SR_DIR / "ProxyLocal.conf": {"policy_any": {"proxy"}},
 }
 
 # Clash provider -> QuantumultX source it is generated from.
@@ -78,6 +80,7 @@ CLASH_EXPECTED = {
     "Direct.yaml": "Direct.list",
     "AdBlock.yaml": "AdBlock.list",
     "DirectGeo.yaml": "DirectGeo.list",
+    "ProxyLocal.yaml": "ProxyLocal.list",
 }
 
 

@@ -1,0 +1,27 @@
+# NAME: CustomProxy
+# MAINTAINER: MikeHuang01
+# 说明：这里是你的自定义代理规则。以后直接把新规则追加在本文件末尾。
+# 自动同步会去重后生成 QuantumultX/ProxyLocal.list、Shadowrocket/ProxyLocal.conf、Clash/ProxyLocal.yaml。
+#
+# 位置约定：这一层排在「去广告」之后、国内/全球大表之前。
+# 不能排到去广告之前 —— host-keyword, github 这类宽泛规则会把
+# AdBlock 里的 collector.github.com、copilot-telemetry.githubusercontent.com
+# 一起抢成 proxy，GitHub 遥测广告就拦不住了（与 Direct 必须前置是同一类问题）。
+
+# > 一些比较容易忽视的分流
+host-keyword, github, proxy
+
+# > DNS Leak：这些站点应当在代理下访问，避免真实出口泄露
+host-suffix, astrill.com, proxy
+host-suffix, dnsleaktest.com, proxy
+host-suffix, dnsleak.com, proxy
+host-suffix, expressvpn.com, proxy
+host-suffix, nordvpn.com, proxy
+host-suffix, surfshark.com, proxy
+host-suffix, ipleak.net, proxy
+host-suffix, perfect-privacy.com, proxy
+host-suffix, browserleaks.com, proxy
+host-suffix, browserleaks.org, proxy
+host-suffix, vpnunlimited.com, proxy
+host-suffix, whoer.net, proxy
+host-suffix, whrq.net, proxy

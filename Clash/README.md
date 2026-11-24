@@ -1,12 +1,13 @@
 # Clash / mihomo 规则集
 
-本目录由 `scripts/sync-clash.py` 自动生成，**不要手改**。源头是 `QuantumultX/` 下的三份分流资源，因此 Clash 与 QX 永远是同一套规则，只是语法不同。
+本目录由 `scripts/sync-clash.py` 与 `scripts/sync-proxy.py` 自动生成，**不要手改**。源头是 `QuantumultX/` 下的分流资源，因此 Clash 与 QX 永远是同一套规则，只是语法不同。
 
 | 文件 | 来源 | 对应 QX 资源 | 条数 |
 | --- | --- | --- | --- |
-| `Clash/Direct.yaml` | `QuantumultX/Direct.list` | 具体域名直连（第 1 层） | 235 |
+| `Clash/Direct.yaml` | `QuantumultX/Direct.list` | 具体域名直连（第 1 层） | 230 |
 | `Clash/AdBlock.yaml` | `QuantumultX/AdBlock.list` | 去广告 / 劫持拦截（第 2 层） | 291,164 |
-| `Clash/DirectGeo.yaml` | `QuantumultX/DirectGeo.list` | 兜底直连（第 3 层） | 7 |
+| `Clash/ProxyLocal.yaml` | `QuantumultX/ProxyLocal.list` | 自定义代理（第 3 层） | 14 |
+| `Clash/DirectGeo.yaml` | `QuantumultX/DirectGeo.list` | 兜底直连（第 4 层） | 8 |
 
 条数以文件内 `# TOTAL:` 为准，这里只是量级参考。
 
@@ -18,11 +19,12 @@ QX 与 Shadowrocket 的规则自带动作（`host, a.com, direct`、`DOMAIN,a.co
 
 ```yaml
 rules:
-  - RULE-SET,direct,🎯 直连      # 动作在这里
-  - RULE-SET,adblock,🛑 广告拦截  # 也是在这里
+  - RULE-SET,direct,🎯 直连              # 动作在这里
+  - RULE-SET,adblock,🛑 广告拦截          # 也是在这里
+  - RULE-SET,proxylocal,🚀 节点选择       # 自定义代理层也一样
 ```
 
-所以三个文件里全是 `type,value`，没有第三列。想把去广告整体放行，不需要改规则文件，把 `🛑 广告拦截` 这个策略组切到 `DIRECT` 即可 —— 这是 Clash 侧比 QX 方便的地方。
+所以这些文件里全是 `type,value`，没有第三列。想把去广告整体放行，不需要改规则文件，把 `🛑 广告拦截` 这个策略组切到 `DIRECT` 即可 —— 这是 Clash 侧比 QX 方便的地方。
 
 ### 2. 顺序由配置决定，而不是由导入顺序决定
 
@@ -30,12 +32,13 @@ QX 按 `[filter_remote]` 的导入顺序匹配，Clash 按 `rules:` 里 `RULE-SE
 
 ```yaml
 rules:
-  - RULE-SET,direct,🎯 直连        # 第 1 层：具体直连，必须最前
-  - RULE-SET,adblock,🛑 广告拦截    # 第 2 层：去广告
-  - RULE-SET,directgeo,🎯 直连      # 第 3 层：兜底直连，必须在去广告之后
+  - RULE-SET,direct,🎯 直连             # 第 1 层：具体直连，必须最前
+  - RULE-SET,adblock,🛑 广告拦截         # 第 2 层：去广告
+  - RULE-SET,proxylocal,🚀 节点选择      # 第 3 层：自定义代理（github / DNS Leak）
+  - RULE-SET,directgeo,🎯 直连           # 第 4 层：兜底直连，必须在去广告之后
 ```
 
-把 `directgeo`（含 `GEOIP,CN`）排到 `adblock` 之前，国内广告域名会被整体放行，去广告立刻失效 —— 与 QX 里把 `geoip,cn` 提到 AdBlock 前面是同一个错误。
+把 `directgeo`（含 `GEOIP,CN`）排到 `adblock` 之前，国内广告域名会被整体放行，去广告立刻失效 —— 与 QX 里把 `geoip,cn` 提到 AdBlock 前面是同一个错误。同理，`proxylocal` 里的 `DOMAIN-KEYWORD,github` 必须排在 `adblock` 之后，否则会把 `collector.github.com`、`copilot-telemetry.githubusercontent.com` 这 3 条遥测广告域名抢成代理。
 
 ### 3. 去广告只剩「域名级拦截」，没有 MITM 重写
 
@@ -43,7 +46,7 @@ QX 的 `[rewrite_remote]`（`QuantumultX/AdvertisingLite.conf`，1242 条 rewrit
 
 | QX 能力 | Clash 是否支持 | 说明 |
 | --- | --- | --- |
-| `[filter_remote]` 三份分流 | ✅ 完全对应 | 即本目录三个 YAML |
+| `[filter_remote]` 四份分流 | ✅ 完全对应 | 即本目录四个 YAML |
 | `[rewrite_remote]` URL 重写 | ❌ | 无 MITM；只能在域名层 REJECT |
 | 响应脚本 / `reject-dict` / JSON 改写 | ❌ | 同上 |
 | `USER-AGENT` 规则 | ❌ | mihomo v1.19 起已移除该规则类型，生成时自动跳过 |
@@ -70,6 +73,13 @@ rule-providers:
     path: ./ruleset/adblock.yaml
     interval: 86400
 
+  proxylocal:
+    type: http
+    behavior: classical
+    url: "https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/ProxyLocal.yaml"
+    path: ./ruleset/proxylocal.yaml
+    interval: 86400
+
   directgeo:
     type: http
     behavior: classical
@@ -88,7 +98,7 @@ rules:
 
 ## 三、注意事项
 
-1. **`behavior` 必须是 `classical`。** 三份文件里都含 `IP-CIDR` / `IP-ASN` / `GEOIP` 这类非域名规则，写成 `behavior: domain` 会解析失败或静默丢规则。
+1. **`behavior` 必须是 `classical`。** `AdBlock.yaml` 与 `DirectGeo.yaml` 里含 `IP-CIDR` / `IP-CIDR6` / `IP-ASN` / `GEOIP` 这类非域名规则，写成 `behavior: domain` 会解析失败或静默丢规则。
 2. **`Clash/AdBlock.yaml` 有 29 万条**，约 11 MB。建议 `interval: 86400`，不要设成 3600。
 3. **`IP-ASN,132203` 需要 `ASN.mmdb`。** 放在 mihomo 的工作目录（`-d` 指向的目录）里；缺失时 mihomo 会尝试从 GitHub 下载，国内网络下这一步会失败并让整份配置加载失败。
 4. **raw.githubusercontent.com 在国内经常不通**，上例统一用 jsDelivr 镜像；裸 raw 地址只适合能直连的环境。

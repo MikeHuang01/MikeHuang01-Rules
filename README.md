@@ -10,23 +10,28 @@
 QuantumultX/
   Direct.list              自动生成  具体域名直连（分流资源，排第 1）
   AdBlock.list             自动生成  去广告与劫持拦截（分流资源，排第 2）
-  DirectGeo.list           自动生成  兜底直连：内网网段 / GEOIP / IP-ASN（分流资源，排第 3）
+  ProxyLocal.list          自动生成  自定义代理：github 关键词 / DNS Leak（分流资源，排第 3）
+  DirectGeo.list           自动生成  兜底直连：内网网段 / GEOIP / IP-ASN（分流资源，排第 4）
   AdvertisingLite.conf     自动生成  重写资源（rewrite_remote）
-  CustomDirect.list        手写维护  ← 只改这里
+  CustomDirect.list        手写维护  ← 只改这里（直连）
+  CustomProxy.list         手写维护  ← 只改这里（代理）
   targeted-ad-response.js  手写维护  重写用响应脚本
 Shadowrocket/
   Direct.conf              自动生成  DOMAIN 语法直连
   AdBlock.conf             自动生成  DOMAIN 语法拦截
+  ProxyLocal.conf          自动生成  DOMAIN 语法自定义代理
   DirectGeo.conf           自动生成  DOMAIN 语法兜底直连
 Clash/
   README.md                手写维护  三端差异与 Clash 注意事项
   Direct.yaml              自动生成  Clash 规则提供器：具体域名直连
   AdBlock.yaml             自动生成  Clash 规则提供器：去广告 / 劫持拦截
+  ProxyLocal.yaml          自动生成  Clash 规则提供器：自定义代理
   DirectGeo.yaml           自动生成  Clash 规则提供器：兜底直连
 scripts/
   rulelib.py               共享：规则解析、去重、带重试的下载、原子写入
   sync-direct.py           生成 Direct / DirectGeo（QX + Shadowrocket）
   sync-adblock.py          生成 AdBlock（QX + Shadowrocket）
+  sync-proxy.py            生成 ProxyLocal（QX + Shadowrocket + Clash）
   sync-advertising-lite.py 生成 AdvertisingLite.conf
   sync-clash.py            生成 Clash 三份规则提供器（源 = QuantumultX/）
   check-rules.py           生成后校验（Actions 里跑，本地也能跑）
@@ -35,7 +40,7 @@ scripts/
 
 ## 二、QuantumultX 导入
 
-### 1. 分流（`[filter_remote]`）—— 三份，顺序不能错
+### 1. 分流（`[filter_remote]`）—— 四份，顺序不能错
 
 在「设置 → 配置文件 → 分流」中按下面的顺序添加，或者直接粘贴到配置文件的 `[filter_remote]` 段：
 
@@ -43,6 +48,7 @@ scripts/
 [filter_remote]
 https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/Direct.list, tag=Direct, enabled=true
 https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/AdBlock.list, tag=AdBlock, enabled=true
+https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/ProxyLocal.list, tag=ProxyLocal, enabled=true
 https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX/DirectGeo.list, tag=DirectGeo, enabled=true
 ```
 
@@ -50,9 +56,12 @@ https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX
 | --- | --- | --- | --- |
 | 1 | `Direct.list` | 具体域名直连（HOST / HOST-SUFFIX / HOST-KEYWORD / USER-AGENT） | 必须排在 AdBlock **之前**，否则 `HOST-SUFFIX,l.qq.com,REJECT` 这类宽泛拦截会抢先把 `fairplay.l.qq.com` 等直连域名拦掉 |
 | 2 | `AdBlock.list` | 去广告与劫持拦截，统一 `REJECT` | 排在具体直连之后，只拦截没有被直连规则命中的域名 |
-| 3 | `DirectGeo.list` | 兜底直连：`10.0.0.0/8` 等内网网段、`IP-ASN,132203`、`GEOIP,cn` | 必须排在 AdBlock **之后**，否则 `geoip,cn` 会把国内广告域名也一并放行 |
+| 3 | `ProxyLocal.list` | 自定义代理：`HOST-KEYWORD,github` 与 13 条 DNS Leak 域名 | 必须排在 AdBlock **之后**、国内大表之前；放到 AdBlock 前面会让 `HOST-KEYWORD,github` 抢走 `collector.github.com`、`copilot-telemetry.githubusercontent.com` 等被 REJECT 的广告主机 |
+| 4 | `DirectGeo.list` | 兜底直连：`10.0.0.0/8` 等内网网段、`IP-ASN,132203`、`GEOIP,cn` | 必须排在 AdBlock **之后**，否则 `geoip,cn` 会把国内广告域名也一并放行 |
 
-> 只导入 `Direct.list` 和 `AdBlock.list`、漏掉 `DirectGeo.list` 的后果是：没有被任何规则命中的国内流量不再兜底直连，会走默认策略。**三份都要加。**
+> 只导入 `Direct.list` 和 `AdBlock.list`、漏掉 `DirectGeo.list` 的后果是：没有被任何规则命中的国内流量不再兜底直连，会走默认策略。**四份都要加。**
+>
+> `ProxyLocal.list` 里的 `HOST-KEYWORD,github` 只是把 github 相关流量交给代理，它**不是**去广告规则；GitHub 的三条遥测域名仍由 `AdBlock.list` 拦截。
 
 ### 2. 重写（`[rewrite_remote]`）—— 一份
 
@@ -76,12 +85,13 @@ https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/QuantumultX
 
 ## 三、Shadowrocket 导入
 
-在「配置 → 模块 / 规则」中添加远程规则集，顺序同样是 Direct → AdBlock → DirectGeo：
+在「配置 → 模块 / 规则」中添加远程规则集，顺序同样是 Direct → AdBlock → ProxyLocal → DirectGeo：
 
 | 用途 | 远程规则地址 |
 | --- | --- |
 | 直连 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/Shadowrocket/Direct.conf` |
 | 去广告 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/Shadowrocket/AdBlock.conf` |
+| 自定义代理 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/Shadowrocket/ProxyLocal.conf` |
 | 兜底直连 | `https://raw.githubusercontent.com/MikeHuang01/MikeHuang01-Rules/main/Shadowrocket/DirectGeo.conf` |
 
 Shadowrocket 侧把 `HOST` 转成 `DOMAIN`、`HOST-SUFFIX` 转成 `DOMAIN-SUFFIX`、`HOST-KEYWORD` 转成 `DOMAIN-KEYWORD`，IP 网段统一附加 `no-resolve`，策略名统一大写 `DIRECT` / `REJECT`。
@@ -100,12 +110,14 @@ Clash 侧的三份资源由 `scripts/sync-clash.py` 从 `QuantumultX/` 直接生
 rule-providers:
   direct:    {type: http, behavior: classical, url: "https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/Direct.yaml",    path: ./ruleset/direct.yaml,    interval: 86400}
   adblock:   {type: http, behavior: classical, url: "https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/AdBlock.yaml",   path: ./ruleset/adblock.yaml,   interval: 86400}
+  proxylocal:{type: http, behavior: classical, url: "https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/ProxyLocal.yaml", path: ./ruleset/proxylocal.yaml, interval: 86400}
   directgeo: {type: http, behavior: classical, url: "https://cdn.jsdelivr.net/gh/MikeHuang01/MikeHuang01-Rules@main/Clash/DirectGeo.yaml", path: ./ruleset/directgeo.yaml, interval: 86400}
 
 rules:
-  - RULE-SET,direct,🎯 直连        # 第 1 层：具体直连
-  - RULE-SET,adblock,🛑 广告拦截    # 第 2 层：去广告
-  - RULE-SET,directgeo,🎯 直连      # 第 3 层：兜底直连
+  - RULE-SET,direct,🎯 直连          # 第 1 层：具体直连
+  - RULE-SET,adblock,🛑 广告拦截      # 第 2 层：去广告
+  - RULE-SET,proxylocal,🚀 节点选择   # 第 3 层：自定义代理（github / DNS Leak）
+  - RULE-SET,directgeo,🎯 直连        # 第 4 层：兜底直连
   - MATCH,🚀 节点选择
 ```
 
@@ -170,10 +182,11 @@ IP-CIDR,192.0.2.0/24,direct,no-resolve  网段直连
 
 1. `sync-direct.py`：合并上游 Direct 与自定义规则，拆成 `Direct.list` + `DirectGeo.list`，并生成 Shadowrocket 版本；
 2. `sync-adblock.py`：合并上游 Advertising + Hijacking，统一 `REJECT`，生成 `AdBlock.list` 与 Shadowrocket 版本；
-3. `sync-advertising-lite.py`：重新下载上游 `AdvertisingLite.conf`，补回支付宝/菜鸟 3 条明确广告 API 规则、12306 与菜鸟 2 条抓包确认的广告响应规则、哈啰与掌上公交 2 条响应脚本规则及所需 MITM 主机；
-4. `sync-clash.py`：从 `QuantumultX/` 生成 `Clash/Direct.yaml`、`AdBlock.yaml`、`DirectGeo.yaml`（同一套规则，仅语法不同）；
-5. `check-rules.py`：校验规则类型、字段、重复项、被遮蔽规则和分层契约，三端一起校验，**校验不通过就不提交**；
-6. 只有生成内容确实变化时才自动提交。
+3. `sync-proxy.py`：读取 `CustomProxy.list`，生成 `ProxyLocal.list`、`ProxyLocal.conf` 与 `Clash/ProxyLocal.yaml`；
+4. `sync-advertising-lite.py`：重新下载上游 `AdvertisingLite.conf`，补回支付宝/菜鸟 3 条明确广告 API 规则、12306 与菜鸟 2 条抓包确认的广告响应规则、哈啰与掌上公交 2 条响应脚本规则及所需 MITM 主机；
+5. `sync-clash.py`：从 `QuantumultX/` 生成 `Clash/Direct.yaml`、`AdBlock.yaml`、`DirectGeo.yaml`（同一套规则，仅语法不同）；
+6. `check-rules.py`：校验规则类型、字段、重复项、被遮蔽规则和分层契约，三端一起校验，**校验不通过就不提交**；
+7. 只有生成内容确实变化时才自动提交。
 
 GitHub 定时任务可能有几分钟到更长时间的执行延迟。需要立即同步时，打开上面的链接，点击 **Run workflow**，选择 **main** 分支运行。
 
@@ -183,6 +196,7 @@ GitHub 定时任务可能有几分钟到更长时间的执行延迟。需要立�
 pip install --upgrade pip            # 仅需标准库，无需第三方包
 python3 scripts/sync-direct.py
 python3 scripts/sync-adblock.py
+python3 scripts/sync-proxy.py
 python3 scripts/sync-advertising-lite.py
 python3 scripts/sync-clash.py
 python3 scripts/check-rules.py
@@ -197,6 +211,8 @@ RULES_UPSTREAM_CACHE=./upstream-cache python3 scripts/sync-adblock.py
 ## 七、为什么这样分层
 
 历史上 `Direct.list` 与 `AdBlock.list` 都放在「分流」里，容易出现的两个问题是：
+
+0. **宽泛代理规则吃掉去广告**：`host-keyword, github, proxy` 如果放在 `AdBlock` 之前（或继续留在 QX 的 `[filter_local]` 里），会把 `AdBlock` 中 `collector.github.com`、`collector-cdn.github.com`、`copilot-telemetry.githubusercontent.com` 三条遥测域名抢成 proxy，GitHub 遥测广告就再也拦不住。因此自定义代理单独成层 `ProxyLocal.list`，位置固定在第 3 层（去广告之后、国内大表之前）。
 
 1. **宽泛拦截吃掉直连**：AdBlock 里的 `HOST-SUFFIX,l.qq.com,REJECT`、`HOST-KEYWORD,umeng,REJECT` 会命中 Direct 里写的 `fairplay.l.qq.com`、`msg.umeng.com` 等具体直连域名。QX 按顺序匹配，先命中的生效，所以这些直连规则其实从未生效（当前共有 **24 条**处于这种状态）。把 `Direct.list` 放到 `AdBlock.list` 之前即修复，`sync-adblock.py` 每次都会打印这 24 条，便于复核。
 2. **`geoip,cn` 放错位置**：如果 `geoip,cn,direct` 排在 AdBlock 之前，国内广告域名会全部直连放行，去广告形同虚设。因此把它单独拆到 `DirectGeo.list`，排在 AdBlock 之后。
@@ -216,7 +232,7 @@ RULES_UPSTREAM_CACHE=./upstream-cache python3 scripts/sync-adblock.py
 | 现象 | 先查这里 |
 | --- | --- |
 | 资源显示 0 条 / 更新失败 | `raw.githubusercontent.com` 是否可直连；国内网络常需代理或换 jsDelivr 镜像 |
-| 去广告没生效 | 三份分流资源是否都在、顺序是否 Direct → AdBlock → DirectGeo |
+| 去广告没生效 | 四份分流资源是否都在、顺序是否 Direct → AdBlock → ProxyLocal → DirectGeo |
 | 某个 App 功能被误拦 | 在该 App 域名上抓到具体主机名后写入 `CustomDirect.list`，脚本会保证它优先于 AdBlock |
 | 重写没生效 | 是否加到 `[rewrite_remote]`、MITM 是否开启并信任证书 |
 | 支付宝/菜鸟广告 | 只覆盖已抓包确认的接口，未确认的接口不会被误拦 |
